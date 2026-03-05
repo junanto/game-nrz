@@ -84,9 +84,7 @@ background:#eee;
 
 <div class="box">
 
-Nama Siswa <br><br>
-
-<input type="text" id="playerName" placeholder="Masukkan Nama">
+Nama Siswa <br><br> <input type="text" id="playerName" placeholder="Masukkan Nama">
 
 <br><br>
 
@@ -131,15 +129,22 @@ Nama Siswa <br><br>
 
 <script>
 
-// ===============================
-// KONFIGURASI API
-// ===============================
+// =======================
+// KONFIGURASI
+// =======================
 
-let API_URL="https://script.google.com/macros/s/AKfycbyZ6E8ZqrdrgSkDM8QmXfPEPdnEBNWZW3WbNQqNI-pl3_VokQ8nI9NlpYUENG4zzV-O/exec"
+// Google Form
+let FORM_URL="PASTE_LINK_FORM_RESPONSE"
+let ENTRY_NAME="entry.1111111111"
+let ENTRY_SCORE="entry.2222222222"
 
-// ===============================
+// Google Sheet CSV (publish)
+let CSV_URL="PASTE_LINK_CSV"
+
+
+// =======================
 // VARIABEL GAME
-// ===============================
+// =======================
 
 let data=""
 let mode=""
@@ -153,7 +158,9 @@ function randomBits(length){
 let s=""
 
 for(let i=0;i<length;i++){
+
 s+=Math.random()<0.5?"0":"1"
+
 }
 
 return s
@@ -329,52 +336,71 @@ gameOver()
 
 
 
+// =======================
+// GAME OVER
+// =======================
+
 function gameOver(){
 
-sendScoreOnline()
+sendScore()
 
-setTimeout(loadLeaderboardOnline,1500)
+setTimeout(loadLeaderboard,2000)
 
 }
 
 
-// ===============================
-// KIRIM SKOR KE SERVER
-// ===============================
 
-function sendScoreOnline(){
+// =======================
+// KIRIM KE GOOGLE FORM
+// =======================
+
+function sendScore(){
 
 let name=document.getElementById("playerName").value
 
-if(name.trim()==""){
+let formData=new FormData()
 
-alert("Masukkan nama terlebih dahulu")
+formData.append(ENTRY_NAME,name)
+formData.append(ENTRY_SCORE,score)
 
-return
-
-}
-
-fetch(API_URL,{
+fetch(FORM_URL,{
 method:"POST",
-body:JSON.stringify({
-name:name,
-score:score
-})
+mode:"no-cors",
+body:formData
 })
 
 }
 
 
 
-// ===============================
-// LOAD LEADERBOARD ONLINE
-// ===============================
+// =======================
+// LOAD LEADERBOARD
+// =======================
 
-function loadLeaderboardOnline(){
+function loadLeaderboard(){
 
-fetch(API_URL)
-.then(res=>res.json())
-.then(data=>{
+fetch(CSV_URL)
+.then(res=>res.text())
+.then(csv=>{
+
+let rows=csv.split("\n").slice(1)
+
+let data=rows.map(r=>{
+
+let cols=r.split(",")
+
+return{
+name:cols[1],
+score:parseInt(cols[2])
+}
+
+})
+
+data=data.filter(d=>d.name)
+
+data.sort((a,b)=>b.score-a.score)
+
+data=data.slice(0,10)
 
 let html=""
 
@@ -398,16 +424,16 @@ document.getElementById("leaderboardBody").innerHTML=html
 
 
 
-// ===============================
+// =======================
 // INIT
-// ===============================
+// =======================
 
 updateLives()
 updateScore()
 
 newQuestion()
 
-loadLeaderboardOnline()
+loadLeaderboard()
 
 </script>
 

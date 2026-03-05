@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Game Tebak Grafik Line Coding</title>
+
+<style>
+
+body{
+font-family:Arial;
+background:#0f2027;
+color:white;
+text-align:center;
+padding:20px;
+}
+
+.box{
+background:white;
+color:black;
+max-width:1000px;
+margin:auto;
+padding:20px;
+border-radius:15px;
+margin-bottom:20px;
+}
+
+canvas{
+background:#fafafa;
+border:2px solid black;
+margin-top:20px;
+}
+
+input{
+font-size:18px;
+padding:8px;
+width:250px;
+text-align:center;
+}
+
+button{
+font-size:18px;
+padding:10px 20px;
+margin:10px;
+cursor:pointer;
+background:#2c3e50;
+color:white;
+border:none;
+border-radius:5px;
+}
+
+button:hover{
+background:#34495e;
+}
+
+.result{
+font-size:22px;
+font-weight:bold;
+margin-top:10px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th,td{
+border:1px solid #ccc;
+padding:8px;
+text-align:center;
+}
+
+th{
+background:#eee;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h2>🎮 Game Tebak Grafik Line Coding</h2>
+
+<div class="box">
+
+Nama Siswa <br><br>
+
+<input type="text" id="playerName" placeholder="Masukkan Nama">
+
+<br><br>
+
+<div id="score">Skor : 0</div>
+<div id="lives">Nyawa : ❤️❤️❤️</div>
+
+<h3 id="modeText">Mode : -</h3>
+
+<canvas id="canvas" width="800" height="400"></canvas>
+
+<br><br>
+
+<input type="text" id="answer" placeholder="contoh: 10110010">
+
+<br>
+
+<button onclick="checkAnswer()">Cek Jawaban</button> <button onclick="newQuestion()">Lewati</button>
+
+<div class="result" id="result"></div>
+
+</div>
+
+<div class="box">
+
+<h3>🏆 Leaderboard Online</h3>
+
+<table>
+
+<thead>
+<tr>
+<th>Rank</th>
+<th>Nama</th>
+<th>Skor</th>
+</tr>
+</thead>
+
+<tbody id="leaderboardBody"></tbody>
+
+</table>
+
+</div>
+
+<script>
+
+// ===============================
+// KONFIGURASI API
+// ===============================
+
+let API_URL="PASTE_URL_GOOGLE_SCRIPT_DISINI"
+
+// ===============================
+// VARIABEL GAME
+// ===============================
+
+let data=""
+let mode=""
+let lives=3
+let maxLives=3
+let score=0
+
+
+function randomBits(length){
+
+let s=""
+
+for(let i=0;i<length;i++){
+s+=Math.random()<0.5?"0":"1"
+}
+
+return s
+
+}
+
+
+function updateLives(){
+
+let hearts=""
+
+for(let i=0;i<maxLives;i++){
+
+hearts+=i<lives?"❤️":"🖤"
+
+}
+
+document.getElementById("lives").innerText="Nyawa : "+hearts
+
+}
+
+
+function updateScore(){
+
+document.getElementById("score").innerText="Skor : "+score
+
+}
+
+
+function newQuestion(){
+
+if(lives<=0)return
+
+let canvas=document.getElementById("canvas")
+let ctx=canvas.getContext("2d")
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+let length=Math.floor(Math.random()*5)+8
+
+data=randomBits(length)
+
+mode=Math.random()<0.5?"NRZI":"NRZL"
+
+document.getElementById("modeText").innerText="Mode : "+mode
+
+drawSignal(data,mode)
+
+document.getElementById("answer").value=""
+document.getElementById("result").innerText=""
+
+}
+
+
+function drawSignal(data,mode){
+
+let canvas=document.getElementById("canvas")
+let ctx=canvas.getContext("2d")
+
+let width=60
+let marginLeft=50
+
+canvas.width=marginLeft+(data.length*width)+40
+
+let yHigh=100
+let yLow=300
+
+ctx.strokeStyle="#eee"
+
+for(let i=0;i<=data.length;i++){
+
+ctx.beginPath()
+
+ctx.moveTo(marginLeft+i*width,50)
+ctx.lineTo(marginLeft+i*width,350)
+
+ctx.stroke()
+
+}
+
+ctx.fillStyle="black"
+
+ctx.fillText("+V",10,yHigh)
+ctx.fillText("-V",10,yLow)
+
+ctx.strokeStyle="orange"
+ctx.lineWidth=4
+
+ctx.beginPath()
+
+let x=marginLeft
+let level=-1
+let y=yLow
+
+ctx.moveTo(x,y)
+
+for(let i=0;i<data.length;i++){
+
+if(mode=="NRZI"){
+
+if(data[i]=="1"){
+
+level=level*-1
+
+}
+
+}
+
+else{
+
+level=data[i]=="1"?1:-1
+
+}
+
+let nextY=level==1?yHigh:yLow
+
+ctx.lineTo(x,nextY)
+
+ctx.lineTo(x+width,nextY)
+
+x+=width
+
+}
+
+ctx.stroke()
+
+}
+
+
+function checkAnswer(){
+
+if(lives<=0)return
+
+let ans=document.getElementById("answer").value.trim()
+
+let result=document.getElementById("result")
+
+if(ans===data){
+
+score+=10
+
+updateScore()
+
+result.innerHTML="<span style='color:green'>✅ Benar!</span>"
+
+setTimeout(newQuestion,1200)
+
+}
+
+else{
+
+lives--
+
+updateLives()
+
+if(lives>0){
+
+result.innerHTML="<span style='color:red'>❌ Salah!</span>"
+
+}
+
+else{
+
+result.innerHTML="💀 GAME OVER<br>Skor Akhir : "+score
+
+gameOver()
+
+}
+
+}
+
+}
+
+
+
+function gameOver(){
+
+sendScoreOnline()
+
+setTimeout(loadLeaderboardOnline,1500)
+
+}
+
+
+// ===============================
+// KIRIM SKOR KE SERVER
+// ===============================
+
+function sendScoreOnline(){
+
+let name=document.getElementById("playerName").value
+
+if(name.trim()==""){
+
+alert("Masukkan nama terlebih dahulu")
+
+return
+
+}
+
+fetch(API_URL,{
+method:"POST",
+body:JSON.stringify({
+name:name,
+score:score
+})
+})
+
+}
+
+
+
+// ===============================
+// LOAD LEADERBOARD ONLINE
+// ===============================
+
+function loadLeaderboardOnline(){
+
+fetch(API_URL)
+.then(res=>res.json())
+.then(data=>{
+
+let html=""
+
+for(let i=0;i<data.length;i++){
+
+html+=`
+<tr>
+<td>${i+1}</td>
+<td>${data[i].name}</td>
+<td>${data[i].score}</td>
+</tr>
+`
+
+}
+
+document.getElementById("leaderboardBody").innerHTML=html
+
+})
+
+}
+
+
+
+// ===============================
+// INIT
+// ===============================
+
+updateLives()
+updateScore()
+
+newQuestion()
+
+loadLeaderboardOnline()
+
+</script>
+
+</body>
+</html>

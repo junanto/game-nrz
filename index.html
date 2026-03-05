@@ -1,41 +1,62 @@
 <!DOCTYPE html>
+
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<title>Game NRZ-Inverted</title>
+<title>Game Tebak Grafik Line Coding</title>
 
 <style>
 
 body{
 font-family:Arial;
-background:linear-gradient(135deg,#0f2027,#2c5364);
+background:#0f2027;
 color:white;
 text-align:center;
+padding:20px;
 }
 
 .box{
 background:white;
 color:black;
-width:900px;
+max-width:1000px;
 margin:auto;
 padding:20px;
-border-radius:20px;
+border-radius:15px;
+margin-bottom:20px;
 }
 
 canvas{
+background:#fafafa;
 border:2px solid black;
-margin:20px;
-}
-
-input,button{
-padding:10px;
-font-size:16px;
-margin:5px;
-}
-
-#leaderboard{
 margin-top:20px;
-text-align:left;
+}
+
+input{
+font-size:18px;
+padding:8px;
+width:250px;
+text-align:center;
+}
+
+button{
+font-size:18px;
+padding:10px 20px;
+margin:10px;
+cursor:pointer;
+background:#2c3e50;
+color:white;
+border:none;
+border-radius:5px;
+}
+
+button:hover{
+background:#34495e;
+}
+
+.result{
+font-size:22px;
+font-weight:bold;
+margin-top:10px;
 }
 
 table{
@@ -43,276 +64,269 @@ width:100%;
 border-collapse:collapse;
 }
 
-td,th{
+th,td{
 border:1px solid #ccc;
-padding:5px;
+padding:8px;
+text-align:center;
+}
+
+th{
+background:#eee;
 }
 
 </style>
+
 </head>
 
 <body>
 
-<h1>Game NRZ-Inverted</h1>
+<h2>🎮 Game Tebak Grafik Line Coding</h2>
 
 <div class="box">
 
-<div id="login">
+Nama Siswa <br><br> <input type="text" id="playerName" placeholder="Masukkan Nama">
 
-<h2>Masukkan Nama</h2>
-
-<input id="nameInput" placeholder="Nama siswa">
-<br>
-<button onclick="startGame()">Mulai Game</button>
-
-</div>
-
-<div id="game" style="display:none">
-
-<h3 id="player"></h3>
+<br><br>
 
 <div id="score">Skor : 0</div>
-<div id="level">Level : 1</div>
-<div id="progress">Progress Level : 0 / 5</div>
 <div id="lives">Nyawa : ❤️❤️❤️</div>
 
-<canvas id="canvas" width="800" height="200"></canvas>
+<h3 id="modeText">Mode : -</h3>
 
-<div>
-<input id="answer" placeholder="Masukkan bit contoh: 10101">
-<button onclick="checkAnswer()">Jawab</button>
+<canvas id="canvas" width="800" height="400"></canvas>
+
+<br><br>
+
+<input type="text" id="answer" placeholder="contoh: 10110010">
+
+<br>
+
+<button onclick="checkAnswer()">Cek Jawaban</button> <button onclick="newQuestion()">Lewati</button>
+
+<div class="result" id="result"></div>
+
 </div>
 
-<div id="result"></div>
+<div class="box">
 
-<button onclick="saveScore()">Simpan Skor</button>
-
-</div>
-
-<div id="leaderboard">
-
-<h2>Leaderboard</h2>
+<h3>🏆 Leaderboard Online</h3>
 
 <table>
+
 <thead>
 <tr>
+<th>Rank</th>
 <th>Nama</th>
 <th>Skor</th>
 </tr>
 </thead>
-<tbody id="leaderboardBody"></tbody>
-</table>
 
-</div>
+<tbody id="leaderboardBody"></tbody>
+
+</table>
 
 </div>
 
 <script>
 
-/* =========================
-SETTING GOOGLE FORM
-========================= */
+// =======================
+// KONFIGURASI
+// =======================
 
-const FORM_URL="https://docs.google.com/forms/d/e/1FAIpQLSeu9Wa2Py0d-6KlDf2NwXlZuooonPHttFY-fhdAx3Bh3RVe8A/formResponse"
-const SHEET_CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vRsbWmgt1YA35qac-LRnQhchCaurt2WkbxkWIv6DVELyrWwjix2WmZelQvdXb1GD-CpgdMBrVUPSQpF/pub?output=csv"
+// Google Form
+let FORM_URL="https://docs.google.com/forms/d/e/1FAIpQLSeu9Wa2Py0d-6KlDf2NwXlZuooonPHttFY-fhdAx3Bh3RVe8A/formResponse"
+let ENTRY_NAME="entry.1228095246"
+let ENTRY_SCORE="entry.1297821195"
 
-/* =========================
-VARIABEL GAME
-========================= */
+// Google Sheet CSV (publish)
+let CSV_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vRsbWmgt1YA35qac-LRnQhchCaurt2WkbxkWIv6DVELyrWwjix2WmZelQvdXb1GD-CpgdMBrVUPSQpF/pub?output=csv"
 
-let player=""
-let score=0
-let lives=3
-let level=1
-let correctCount=0
+
+// =======================
+// VARIABEL GAME
+// =======================
+
 let data=""
+let mode=""
+let lives=3
+let maxLives=3
+let score=0
 
-const canvas=document.getElementById("canvas")
-const ctx=canvas.getContext("2d")
 
-/* =========================
-START GAME
-========================= */
-
-function startGame(){
-
-player=document.getElementById("nameInput").value
-
-if(player==""){
-alert("Masukkan nama")
-return
-}
-
-document.getElementById("login").style.display="none"
-document.getElementById("game").style.display="block"
-
-document.getElementById("player").innerText="Pemain : "+player
-
-updateLives()
-updateScore()
-updateLevel()
-
-newQuestion()
-
-}
-
-/* =========================
-UPDATE UI
-========================= */
-
-function updateScore(){
-document.getElementById("score").innerText="Skor : "+score
-}
-
-function updateLives(){
-
-let hearts=""
-
-for(let i=0;i<lives;i++) hearts+="❤️"
-
-document.getElementById("lives").innerText="Nyawa : "+hearts
-
-}
-
-function updateLevel(){
-
-document.getElementById("level").innerText="Level : "+level
-document.getElementById("progress").innerText="Progress Level : "+correctCount+" / 5"
-
-}
-
-/* =========================
-GENERATE DATA
-========================= */
-
-function generateBits(n){
+function randomBits(length){
 
 let s=""
 
-for(let i=0;i<n;i++)
+for(let i=0;i<length;i++){
+
 s+=Math.random()<0.5?"0":"1"
+
+}
 
 return s
 
 }
 
-/* =========================
-GAMBAR NRZ INVERTED
-========================= */
 
-function drawNRZ(bits){
+function updateLives(){
 
-ctx.clearRect(0,0,canvas.width,canvas.height)
+let hearts=""
 
-let x=50
-let yHigh=50
-let yLow=150
+for(let i=0;i<maxLives;i++){
 
-let levelSignal=yLow
-
-for(let i=0;i<bits.length;i++){
-
-let bit=bits[i]
-
-if(bit=="1"){
-
-levelSignal=(levelSignal==yHigh)?yLow:yHigh
+hearts+=i<lives?"❤️":"🖤"
 
 }
 
-let y=levelSignal
-
-ctx.beginPath()
-ctx.moveTo(x,y)
-ctx.lineTo(x+60,y)
-ctx.stroke()
-
-ctx.fillText(bit,x+25,180)
-
-x+=60
+document.getElementById("lives").innerText="Nyawa : "+hearts
 
 }
 
+
+function updateScore(){
+
+document.getElementById("score").innerText="Skor : "+score
+
 }
 
-/* =========================
-SOAL BARU
-========================= */
 
 function newQuestion(){
 
-let length
+if(lives<=0)return
 
-if(level==1) length=8
-else if(level==2) length=10
-else length=12
+let canvas=document.getElementById("canvas")
+let ctx=canvas.getContext("2d")
 
-data=generateBits(length)
+ctx.clearRect(0,0,canvas.width,canvas.height)
 
-drawNRZ(data)
+let length=Math.floor(Math.random()*5)+8
+
+data=randomBits(length)
+
+mode=Math.random()<0.5?"NRZI":"NRZL"
+
+document.getElementById("modeText").innerText="Mode : "+mode
+
+drawSignal(data,mode)
 
 document.getElementById("answer").value=""
 document.getElementById("result").innerText=""
 
 }
 
-/* =========================
-CEK JAWABAN
-========================= */
+
+function drawSignal(data,mode){
+
+let canvas=document.getElementById("canvas")
+let ctx=canvas.getContext("2d")
+
+let width=60
+let marginLeft=50
+
+canvas.width=marginLeft+(data.length*width)+40
+
+let yHigh=100
+let yLow=300
+
+ctx.strokeStyle="#eee"
+
+for(let i=0;i<=data.length;i++){
+
+ctx.beginPath()
+
+ctx.moveTo(marginLeft+i*width,50)
+ctx.lineTo(marginLeft+i*width,350)
+
+ctx.stroke()
+
+}
+
+ctx.fillStyle="black"
+
+ctx.fillText("+V",10,yHigh)
+ctx.fillText("-V",10,yLow)
+
+ctx.strokeStyle="orange"
+ctx.lineWidth=4
+
+ctx.beginPath()
+
+let x=marginLeft
+let level=-1
+let y=yLow
+
+ctx.moveTo(x,y)
+
+for(let i=0;i<data.length;i++){
+
+if(mode=="NRZI"){
+
+if(data[i]=="1"){
+
+level=level*-1
+
+}
+
+}
+
+else{
+
+level=data[i]=="1"?1:-1
+
+}
+
+let nextY=level==1?yHigh:yLow
+
+ctx.lineTo(x,nextY)
+
+ctx.lineTo(x+width,nextY)
+
+x+=width
+
+}
+
+ctx.stroke()
+
+}
+
 
 function checkAnswer(){
 
-let ans=document.getElementById("answer").value
+if(lives<=0)return
+
+let ans=document.getElementById("answer").value.trim()
+
+let result=document.getElementById("result")
 
 if(ans===data){
 
 score+=10
-correctCount++
 
 updateScore()
-updateLevel()
 
-document.getElementById("result").innerHTML="<span style='color:green'>Benar!</span>"
+result.innerHTML="<span style='color:green'>✅ Benar!</span>"
 
-if(correctCount>=5){
-
-correctCount=0
-
-if(level<3){
-
-level++
-
-document.getElementById("result").innerHTML="<span style='color:blue'>Naik ke Level "+level+"</span>"
-
-updateLevel()
-
-setTimeout(newQuestion,1500)
-
-return
+setTimeout(newQuestion,1200)
 
 }
 
-}
-
-setTimeout(newQuestion,1000)
-
-}else{
+else{
 
 lives--
 
 updateLives()
 
-document.getElementById("result").innerHTML="<span style='color:red'>Salah!</span>"
+if(lives>0){
 
-if(lives<=0){
+result.innerHTML="<span style='color:red'>❌ Salah!</span>"
 
-alert("Game Over! Skor: "+score)
+}
 
-saveScore()
+else{
 
-}else{
+result.innerHTML="💀 GAME OVER<br>Skor Akhir : "+score
 
-setTimeout(newQuestion,1000)
+gameOver()
 
 }
 
@@ -320,16 +334,34 @@ setTimeout(newQuestion,1000)
 
 }
 
-/* =========================
-SIMPAN KE GOOGLE FORM
-========================= */
 
-function saveScore(){
+
+// =======================
+// GAME OVER
+// =======================
+
+function gameOver(){
+
+sendScore()
+
+setTimeout(loadLeaderboard,2000)
+
+}
+
+
+
+// =======================
+// KIRIM KE GOOGLE FORM
+// =======================
+
+function sendScore(){
+
+let name=document.getElementById("playerName").value
 
 let formData=new FormData()
 
-formData.append("entry.1228095246",player)
-formData.append("entry.1297821195",score)
+formData.append(ENTRY_NAME,name)
+formData.append(ENTRY_SCORE,score)
 
 fetch(FORM_URL,{
 method:"POST",
@@ -337,63 +369,69 @@ mode:"no-cors",
 body:formData
 })
 
-alert("Skor berhasil dikirim!")
-
 }
 
-/* =========================
-LEADERBOARD ONLINE
-========================= */
 
-async function loadLeaderboard(){
 
-try{
+// =======================
+// LOAD LEADERBOARD
+// =======================
 
-let res=await fetch(SHEET_CSV_URL)
+function loadLeaderboard(){
 
-let text=await res.text()
+fetch(CSV_URL)
+.then(res=>res.text())
+.then(csv=>{
 
-let rows=text.split("\n").slice(1)
+let rows=csv.split("\n").slice(1)
 
-let data=[]
+let data=rows.map(r=>{
 
-rows.forEach(r=>{
+let cols=r.split(",")
 
-let c=r.split(",")
-
-if(c.length>=2){
-
-data.push({
-name:c[0],
-score:parseInt(c[1])
-})
-
+return{
+name:cols[1],
+score:parseInt(cols[2])
 }
 
 })
+
+data=data.filter(d=>d.name)
 
 data.sort((a,b)=>b.score-a.score)
 
+data=data.slice(0,10)
+
 let html=""
 
-data.slice(0,10).forEach(d=>{
+for(let i=0;i<data.length;i++){
 
-html+=`<tr>
-<td>${d.name}</td>
-<td>${d.score}</td>
-</tr>`
+html+=`
+<tr>
+<td>${i+1}</td>
+<td>${data[i].name}</td>
+<td>${data[i].score}</td>
+</tr>
+`
 
-})
+}
 
 document.getElementById("leaderboardBody").innerHTML=html
 
-}catch(e){
-
-console.log(e)
+})
 
 }
 
-}
+
+
+// =======================
+// INIT
+// =======================
+
+updateLives()
+updateScore()
+
+newQuestion()
 
 loadLeaderboard()
 
